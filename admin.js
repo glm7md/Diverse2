@@ -1,26 +1,21 @@
 const adminApp = document.getElementById('adminApp');
 const databaseKey = 'northstar_university_data';
 const defaultData = { courses: [], students: [] };
- 
-// NOTE: هذه الصفحة تعتمد على تخزين محلي (localStorage) كقاعدة بيانات وهمية.
-// المصادقة هنا (admin/admin123) وكلمات مرور الطلاب مخزنة نصًا صريحًا لأغراض العرض فقط،
-// وفي بيئة إنتاج حقيقية يجب أن تنتقل كل عمليات التحقق والتشفير إلى الـ backend.
- 
+
 const adminState = {
     loggedIn: false,
     page: 'courses',
     selectedYear: 'First Year',
- 
-    // 'list' | 'course-form' | 'lectures-list' | 'lecture-form'
+
     view: 'list',
- 
-    editingCourse: null,   // كورس حقيقي = تعديل، null = إضافة جديد
-    activeCourse: null,    // الكورس اللي بنتصفح محاضراته حاليًا
-    editingLecture: null,  // محاضرة حقيقية = تعديل، null = إضافة جديدة
- 
+
+    editingCourse: null,
+    activeCourse: null,
+    editingLecture: null,
+
     data: loadAdminData()
 };
- 
+
 function loadAdminData() {
     try {
         const raw = localStorage.getItem(databaseKey);
@@ -35,7 +30,7 @@ function loadAdminData() {
         return structuredClone(defaultData);
     }
 }
- 
+
 function saveAdminData() {
     try {
         localStorage.setItem(databaseKey, JSON.stringify(adminState.data));
@@ -50,18 +45,17 @@ function saveAdminData() {
         return false;
     }
 }
- 
+
 function makeId() {
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
- 
+
 function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, (c) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[c]));
 }
- 
-// ---------- Toast ----------
+
 let toastTimer = null;
 function adminToast(message) {
     const el = document.getElementById('toast');
@@ -71,8 +65,7 @@ function adminToast(message) {
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
- 
-// ---------- Login ----------
+
 function showAdminLogin() {
     adminApp.innerHTML = `
     <main class="admin-login-page">
@@ -96,18 +89,18 @@ function showAdminLogin() {
       </div>
     </main>
   `;
- 
+
     document.getElementById('adminLoginBtn').addEventListener('click', handleAdminLogin);
     document.getElementById('adminPassword').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleAdminLogin();
     });
 }
- 
+
 function handleAdminLogin() {
     const username = document.getElementById('adminUsername').value.trim();
     const password = document.getElementById('adminPassword').value;
     const errorEl = document.getElementById('adminLoginError');
- 
+
     if (username === 'admin' && password === 'admin123') {
         adminState.loggedIn = true;
         localStorage.setItem('northstar_admin_session', 'true');
@@ -116,14 +109,13 @@ function handleAdminLogin() {
         errorEl.textContent = 'Invalid administrator credentials.';
     }
 }
- 
+
 function adminLogout() {
     adminState.loggedIn = false;
     localStorage.removeItem('northstar_admin_session');
     showAdminLogin();
 }
- 
-// ---------- Shell ----------
+
 function renderAdminPanel() {
     adminApp.innerHTML = `
     <div class="admin-shell">
@@ -136,7 +128,7 @@ function renderAdminPanel() {
   `;
     renderAdminContent();
 }
- 
+
 function adminSidebar() {
     return `
     <aside class="admin-sidebar">
@@ -168,40 +160,39 @@ function adminSidebar() {
     </aside>
   `;
 }
- 
+
 function toggleAdminSidebar() {
     document.querySelector('.admin-sidebar')?.classList.toggle('open');
 }
- 
+
 function closeAdminSidebar() {
     document.querySelector('.admin-sidebar')?.classList.remove('open');
 }
- 
+
 function adminNavigate(page) {
     adminState.page = page;
     resetCourseNavigation();
     renderAdminPanel();
 }
- 
+
 function resetCourseNavigation() {
     adminState.view = 'list';
     adminState.editingCourse = null;
     adminState.activeCourse = null;
     adminState.editingLecture = null;
 }
- 
+
 function renderAdminContent() {
     const content = document.getElementById('adminContent');
     if (!content) return;
- 
+
     if (adminState.page === 'courses') {
         content.innerHTML = adminCoursesPage();
     } else if (adminState.page === 'students') {
         content.innerHTML = adminStudentsPage();
     }
 }
- 
-// ---------- Courses page (router) ----------
+
 function adminCoursesPage() {
     switch (adminState.view) {
         case 'course-form':
@@ -214,13 +205,13 @@ function adminCoursesPage() {
             return adminCoursesListPage();
     }
 }
- 
+
 function adminCoursesListPage() {
     const years = ['First Year', 'Second Year', 'Third Year', 'Fourth Year'];
     const filteredCourses = adminState.data.courses.filter(
         c => c.year === adminState.selectedYear
     );
- 
+
     return `
     <header class="admin-topbar">
       <div>
@@ -228,7 +219,7 @@ function adminCoursesListPage() {
         <p>Create and manage courses for all academic years</p>
       </div>
     </header>
- 
+
     <section class="admin-panel">
       <div class="admin-panel-header">
         <div>
@@ -246,11 +237,11 @@ function adminCoursesListPage() {
           `).join('')}
         </div>
       </div>
- 
+
       <div style="display:flex;justify-content:flex-end;margin:20px 0;">
         <button class="secondary" data-action="add-course">+ Add New Course</button>
       </div>
- 
+
       ${filteredCourses.length === 0 ? `
         <div class="empty-state-admin">
             <div class="empty-icon">📚</div>
@@ -294,11 +285,11 @@ function adminCoursesListPage() {
     </section>
   `;
 }
- 
+
 function adminCourseLecturesPage(course) {
     if (!course) return adminCoursesListPage();
     const lectures = course.lectures || [];
- 
+
     return `
     <header class="admin-topbar">
       <div>
@@ -353,11 +344,11 @@ function adminCourseLecturesPage(course) {
     </section>
   `;
 }
- 
+
 function adminCourseForm() {
     const course = adminState.editingCourse;
     const isEditing = course !== null;
- 
+
     return `
     <header class="admin-topbar">
       <div>
@@ -391,13 +382,13 @@ function adminCourseForm() {
     </section>
   `;
 }
- 
+
 function adminLectureForm() {
     const course = adminState.activeCourse;
     const lecture = adminState.editingLecture;
     if (!course) return adminCoursesListPage();
     const isEditing = lecture !== null;
- 
+
     return `
     <header class="admin-topbar">
       <div>
@@ -428,10 +419,10 @@ function adminLectureForm() {
     </section>
   `;
 }
- 
+
 function adminStudentsPage() {
     const students = adminState.data.students;
- 
+
     return `
     <header class="admin-topbar">
       <div>
@@ -482,20 +473,19 @@ function adminStudentsPage() {
     </section>
   `;
 }
- 
-// ---------- Navigation actions ----------
+
 function selectAdminYear(year) {
     adminState.selectedYear = year;
     resetCourseNavigation();
     renderAdminPanel();
 }
- 
+
 function showAddCourseForm() {
     adminState.editingCourse = null;
     adminState.view = 'course-form';
     renderAdminPanel();
 }
- 
+
 function editCourse(courseId) {
     const course = adminState.data.courses.find(c => c.id === courseId);
     if (!course) return;
@@ -503,7 +493,7 @@ function editCourse(courseId) {
     adminState.view = 'course-form';
     renderAdminPanel();
 }
- 
+
 function manageCourseLectures(courseId) {
     const course = adminState.data.courses.find(c => c.id === courseId);
     if (!course) return;
@@ -512,12 +502,12 @@ function manageCourseLectures(courseId) {
     adminState.view = 'lectures-list';
     renderAdminPanel();
 }
- 
+
 function backToCoursesList() {
     resetCourseNavigation();
     renderAdminPanel();
 }
- 
+
 function showAddLectureForm(courseId) {
     const course = adminState.data.courses.find(c => c.id === courseId);
     if (!course) return;
@@ -526,7 +516,7 @@ function showAddLectureForm(courseId) {
     adminState.view = 'lecture-form';
     renderAdminPanel();
 }
- 
+
 function editLecture(courseId, lectureId) {
     const course = adminState.data.courses.find(c => c.id === courseId);
     if (!course) return;
@@ -537,23 +527,22 @@ function editLecture(courseId, lectureId) {
     adminState.view = 'lecture-form';
     renderAdminPanel();
 }
- 
+
 function cancelCourseForm() {
     adminState.editingCourse = null;
     adminState.view = 'list';
     renderAdminPanel();
 }
- 
+
 function cancelLectureForm() {
     adminState.editingLecture = null;
     adminState.view = 'lectures-list';
     renderAdminPanel();
 }
- 
-// ---------- File helpers ----------
-const MAX_COVER_BYTES = 2 * 1024 * 1024;   // ~2MB
-const MAX_VIDEO_BYTES = 4 * 1024 * 1024;   // ~4MB — localStorage has a small total quota
- 
+
+const MAX_COVER_BYTES = 2 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 4 * 1024 * 1024;
+
 function readFileAsDataUrl(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -562,26 +551,25 @@ function readFileAsDataUrl(file) {
         reader.readAsDataURL(file);
     });
 }
- 
-// ---------- Save / delete: courses ----------
+
 async function saveCourse() {
     const title = document.getElementById('courseTitle').value.trim();
     const description = document.getElementById('courseDescription').value.trim();
     const coverFile = document.getElementById('courseCover').files[0];
- 
+
     if (!title) {
         adminToast('Please enter a course title.');
         return;
     }
- 
+
     if (coverFile && coverFile.size > MAX_COVER_BYTES) {
         adminToast('Cover image is too large (max ~2MB) for local storage.');
         return;
     }
- 
+
     const course = adminState.editingCourse;
     const isEditing = course !== null;
- 
+
     let coverData = isEditing ? course.cover : null;
     if (coverFile) {
         try {
@@ -592,7 +580,7 @@ async function saveCourse() {
             return;
         }
     }
- 
+
     if (!isEditing) {
         adminState.data.courses.push({
             id: makeId(),
@@ -613,12 +601,12 @@ async function saveCourse() {
         if (!saveAdminData()) return;
         adminToast('Course updated successfully!');
     }
- 
+
     adminState.editingCourse = null;
     adminState.view = 'list';
     renderAdminPanel();
 }
- 
+
 function removeCover() {
     const course = adminState.editingCourse;
     if (!course) return;
@@ -626,35 +614,34 @@ function removeCover() {
     if (saveAdminData()) adminToast('Cover removed.');
     renderAdminPanel();
 }
- 
+
 function deleteCourse(courseId) {
     if (!confirm('Are you sure you want to delete this course? This will also delete all lectures.')) return;
     adminState.data.courses = adminState.data.courses.filter(c => c.id !== courseId);
     if (saveAdminData()) adminToast('Course deleted.');
     renderAdminPanel();
 }
- 
-// ---------- Save / delete: lectures ----------
+
 async function saveLecture() {
     const course = adminState.activeCourse;
     if (!course) return;
- 
+
     const title = document.getElementById('lectureTitle').value.trim();
     const videoFile = document.getElementById('lectureVideo').files[0];
- 
+
     if (!title) {
         adminToast('Please enter a lecture title.');
         return;
     }
- 
+
     if (videoFile && videoFile.size > MAX_VIDEO_BYTES) {
         adminToast('Video is too large for local storage (max ~4MB in this demo).');
         return;
     }
- 
+
     const lecture = adminState.editingLecture;
     const isEditing = lecture !== null;
- 
+
     let videoData = isEditing ? lecture.videoData : null;
     if (videoFile) {
         try {
@@ -665,9 +652,9 @@ async function saveLecture() {
             return;
         }
     }
- 
+
     if (!course.lectures) course.lectures = [];
- 
+
     if (!isEditing) {
         course.lectures.push({ id: makeId(), title, videoData });
         if (!saveAdminData()) return;
@@ -680,12 +667,12 @@ async function saveLecture() {
         if (!saveAdminData()) return;
         adminToast('Lecture updated successfully!');
     }
- 
+
     adminState.editingLecture = null;
     adminState.view = 'lectures-list';
     renderAdminPanel();
 }
- 
+
 function removeVideo() {
     const course = adminState.activeCourse;
     const lecture = adminState.editingLecture;
@@ -696,7 +683,7 @@ function removeVideo() {
     if (saveAdminData()) adminToast('Video removed.');
     renderAdminPanel();
 }
- 
+
 function deleteLecture(courseId, lectureId) {
     if (!confirm('Are you sure you want to delete this lecture?')) return;
     const course = adminState.data.courses.find(c => c.id === courseId);
@@ -705,11 +692,10 @@ function deleteLecture(courseId, lectureId) {
     if (saveAdminData()) adminToast('Lecture deleted.');
     renderAdminPanel();
 }
- 
-// ---------- Students ----------
+
 function showAddStudentForm() {
     document.getElementById('studentModal')?.remove();
- 
+
     const modalHtml = `
     <div class="modal-backdrop" id="studentModal">
       <div class="modal">
@@ -743,25 +729,25 @@ function showAddStudentForm() {
       </div>
     </div>
   `;
- 
+
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
- 
+
 function closeStudentModal() {
     document.getElementById('studentModal')?.remove();
 }
- 
+
 function saveStudent() {
     const name = document.getElementById('studentName').value.trim();
     const email = document.getElementById('studentEmail').value.trim();
     const password = document.getElementById('studentPassword').value;
     const year = document.getElementById('studentYear').value;
- 
+
     if (!name || !email || !password) {
         adminToast('Please fill in all required fields.');
         return;
     }
- 
+
     const emailTaken = adminState.data.students.some(
         s => (s.email || s.username).toLowerCase() === email.toLowerCase()
     );
@@ -769,7 +755,7 @@ function saveStudent() {
         adminToast('A student with this email/username already exists.');
         return;
     }
- 
+
     adminState.data.students.push({
         id: makeId(),
         name,
@@ -778,24 +764,23 @@ function saveStudent() {
         password,
         year
     });
- 
+
     if (!saveAdminData()) return;
     closeStudentModal();
     renderAdminPanel();
     adminToast('Student account created.');
 }
- 
+
 function deleteStudent(studentId) {
     if (!confirm('Are you sure you want to delete this student account?')) return;
     adminState.data.students = adminState.data.students.filter(s => s.id !== studentId);
     if (saveAdminData()) adminToast('Student account deleted.');
     renderAdminPanel();
 }
- 
-// ---------- Event delegation ----------
+
 document.addEventListener('click', (e) => {
     const target = e.target.closest('[data-action]');
- 
+
     if (!target) {
         const openSidebar = document.querySelector('.admin-sidebar.open');
         if (openSidebar && !openSidebar.contains(e.target) && !e.target.closest('.mobile-menu-button')) {
@@ -803,9 +788,9 @@ document.addEventListener('click', (e) => {
         }
         return;
     }
- 
+
     const action = target.dataset.action;
- 
+
     switch (action) {
         case 'toggle-sidebar': toggleAdminSidebar(); break;
         case 'close-sidebar': closeAdminSidebar(); break;
@@ -835,8 +820,7 @@ document.addEventListener('click', (e) => {
         case 'delete-student': deleteStudent(target.dataset.studentId); break;
     }
 });
- 
-// ---------- Bootstrap ----------
+
 if (localStorage.getItem('northstar_admin_session') === 'true') {
     adminState.loggedIn = true;
     renderAdminPanel();
