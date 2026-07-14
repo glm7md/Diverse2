@@ -6,22 +6,38 @@ const state = {
     user: null,
     page: 'home',
     selectedYear: null,
-    data: JSON.parse(localStorage.getItem(databaseKey) || JSON.stringify(defaultData))
+    data: loadStudentData()
 };
 
-function save() {
-    localStorage.setItem(databaseKey, JSON.stringify(state.data));
+function loadStudentData() {
+    try {
+        const raw = localStorage.getItem(databaseKey);
+        if (!raw) return structuredClone(defaultData);
+        const parsed = JSON.parse(raw);
+        return {
+            courses: Array.isArray(parsed.courses) ? parsed.courses : [],
+            students: Array.isArray(parsed.students) ? parsed.students : []
+        };
+    } catch (err) {
+        console.error(err);
+        return structuredClone(defaultData);
+    }
 }
 
-function makeId() {
-    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
 }
 
+let toastTimer = null;
 function toast(message) {
-    const element = document.getElementById('toast');
-    element.textContent = message;
-    element.classList.add('show');
-    setTimeout(() => element.classList.remove('show'), 2500);
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
 function yearSelectionPage() {
@@ -41,15 +57,15 @@ function yearSelectionPage() {
       </div>
       <div class="year-grid">
         ${years.map((year, index) => `
-          <div class="year-card" onclick="selectYear('${year}')">
+          <div class="year-card" data-action="select-year" data-year="${esc(year)}">
             <div class="year-card-icon">${index + 1}</div>
-            <h3>${year}</h3>
-            <p>Access all courses and learning materials for ${year.toLowerCase()} students</p>
+            <h3>${esc(year)}</h3>
+            <p>Access all courses and learning materials for ${esc(year.toLowerCase())} students</p>
           </div>
         `).join('')}
       </div>
       <div class="admin-link">
-        <button onclick="window.location.href='admin.html'">Administrator Access</button>
+        <button data-action="go-admin">Administrator Access</button>
       </div>
     </main>
   `;
@@ -57,16 +73,23 @@ function yearSelectionPage() {
 
 function selectYear(year) {
     state.selectedYear = year;
-    const savedStudent = localStorage.getItem('northstar_student_session');
-    if (savedStudent) {
-        const parsed = JSON.parse(savedStudent);
-        const studentExists = state.data.students.find(s => s.id === parsed.id);
-        if (studentExists) {
-            state.user = { ...studentExists, role: 'student' };
-            renderStudentDashboard();
-            return;
+
+    try {
+        const savedStudent = localStorage.getItem('northstar_student_session');
+        if (savedStudent) {
+            const parsed = JSON.parse(savedStudent);
+            const studentExists = state.data.students.find(s => s.id === parsed.id);
+            if (studentExists) {
+                state.user = { ...studentExists, role: 'student' };
+                renderStudentDashboard();
+                return;
+            }
         }
+    } catch (err) {
+        console.error(err);
+        localStorage.removeItem('northstar_student_session');
     }
+
     state.user = { role: 'guest', year: year, name: 'Student' };
     renderStudentDashboard();
 }
@@ -78,35 +101,39 @@ function renderStudentDashboard() {
     app.innerHTML = `
     <div class="shell">
       ${studentSidebar()}
-      <main class="main" id="content"></main>
+      <main class="main">
+        <button class="mobile-menu-button" data-action="toggle-menu">☰ Menu</button>
+        <div id="content"></div>
+      </main>
     </div>
   `;
-    const content = document.getElementById('content');
-    content.innerHTML = studentDashboardContent(yearCourses);
+    document.getElementById('content').innerHTML = studentDashboardContent(yearCourses);
 }
 
 function studentSidebar() {
+    const name = state.user && state.user.name ? state.user.name : 'Student';
+
     return `
     <aside class="sidebar">
       <div class="mobile-sidebar-head">
         <span>Navigation</span>
-        <button onclick="toggleMenu()">×</button>
+        <button data-action="close-menu">&times;</button>
       </div>
       <div class="brand">
         <span class="brand-mark">N</span> NORTHSTAR
       </div>
       <nav>
-        <button class="nav-link active" onclick="navigateStudent('dashboard')">My Courses</button>
+        <button class="nav-link active" data-action="navigate-dashboard">My Courses</button>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-mini">
-          <div class="avatar">${state.user.name ? state.user.name.charAt(0).toUpperCase() : 'S'}</div>
+          <div class="avatar">${esc(name.charAt(0).toUpperCase())}</div>
           <div>
-            <b>${state.user.name || 'Student'}</b>
-            <span>${state.selectedYear}</span>
+            <b>${esc(name)}</b>
+            <span>${esc(state.selectedYear)}</span>
           </div>
         </div>
-        <button class="signout" onclick="backToYearSelection()">Change Year</button>
+        <button class="signout" data-action="change-year">Change Year</button>
       </div>
     </aside>
   `;
@@ -116,8 +143,7 @@ function studentDashboardContent(courses) {
     const header = `
     <header class="topbar">
       <div>
-        <button class="mobile-menu-button" onclick="toggleMenu()">☰ Menu</button>
-        <h1>${state.selectedYear} Courses</h1>
+        <h1>${esc(state.selectedYear)} Courses</h1>
         <p>Available courses for your academic year</p>
       </div>
     </header>
@@ -129,7 +155,7 @@ function studentDashboardContent(courses) {
       <section class="empty-state">
         <div class="empty-icon">☷</div>
         <h2>No Courses Available</h2>
-        <p>There are no courses for ${state.selectedYear} yet. Content is added by the administration.</p>
+        <p>There are no courses for ${esc(state.selectedYear)} yet. Content is added by the administration.</p>
       </section>
     `;
     }
@@ -155,13 +181,13 @@ function studentDashboardContent(courses) {
 function courseCard(course) {
     const lectureCount = course.lectures ? course.lectures.length : 0;
     return `
-    <article class="course-card" onclick="openCourseDetail('${course.id}')">
-      <div class="course-card-thumb" style="background-image: url('${course.cover || ''}');">
+    <article class="course-card" data-action="open-course" data-course-id="${esc(course.id)}">
+      <div class="course-card-thumb" style="background-image: url('${esc(course.cover || '')}');">
         ${course.cover ? '' : '<div class="course-placeholder">📚</div>'}
       </div>
       <div class="course-card-info">
-        <h4>${course.title}</h4>
-        <p>${course.description || 'No description available'}</p>
+        <h4>${esc(course.title)}</h4>
+        <p>${esc(course.description || 'No description available')}</p>
       </div>
       <div class="course-card-footer">
         <span>${lectureCount} lecture${lectureCount === 1 ? '' : 's'}</span>
@@ -181,10 +207,10 @@ function openCourseDetail(courseId) {
 
     content.innerHTML = `
     <div class="course-detail">
-      <button class="back-button" onclick="renderStudentDashboard()">← Back to courses</button>
-      ${course.cover ? `<div class="course-cover-wrapper"><img src="${course.cover}" alt="${course.title}" class="course-cover"></div>` : ''}
-      <h1 class="course-detail-title">${course.title}</h1>
-      <p class="course-detail-description">${course.description || 'No description provided'}</p>
+      <button class="back-button" data-action="back-to-dashboard">← Back to courses</button>
+      ${course.cover ? `<div class="course-cover-wrapper"><img src="${esc(course.cover)}" alt="${esc(course.title)}" class="course-cover"></div>` : ''}
+      <h1 class="course-detail-title">${esc(course.title)}</h1>
+      <p class="course-detail-description">${esc(course.description || 'No description provided')}</p>
       <div class="lectures-section">
         <h3>Course Lectures</h3>
         ${lectures.length === 0 ? `
@@ -207,13 +233,14 @@ function lectureItem(lecture, index, courseId) {
     const isFirst = index === 0;
     const isLoggedIn = state.user && state.user.role === 'student';
     const isLocked = !isFirst && !isLoggedIn;
+    const action = isLocked ? 'open-login' : 'open-lecture';
 
     return `
-    <div class="lecture-item ${isLocked ? 'locked' : ''}" onclick="${isLocked ? `openLoginModal('${courseId}', '${lecture.id}')` : `openLecturePlayer('${courseId}', '${lecture.id}')`}">
+    <div class="lecture-item ${isLocked ? 'locked' : ''}" data-action="${action}" data-course-id="${esc(courseId)}" data-lecture-id="${esc(lecture.id)}">
       <div class="lecture-item-left">
         <span class="lecture-number">${index + 1}</span>
         <div>
-          <div class="lecture-title">${lecture.title}</div>
+          <div class="lecture-title">${esc(lecture.title)}</div>
           <div class="lecture-meta">${isFirst ? '🔓 Free' : '🔒 Premium'}</div>
         </div>
       </div>
@@ -233,8 +260,8 @@ function openLecturePlayer(courseId, lectureId) {
     const content = document.getElementById('content');
     content.innerHTML = `
     <div class="lecture-player">
-      <button class="back-button" onclick="openCourseDetail('${courseId}')">← Back to course</button>
-      <h2>${lecture.title}</h2>
+      <button class="back-button" data-action="back-to-course" data-course-id="${esc(courseId)}">← Back to course</button>
+      <h2>${esc(lecture.title)}</h2>
       ${lecture.videoData ? `
         <div class="video-wrapper">
           <video controls src="${lecture.videoData}" style="width:100%; height:100%;"></video>
@@ -251,8 +278,7 @@ function openLecturePlayer(courseId, lectureId) {
 }
 
 function openLoginModal(courseId, lectureId) {
-    const existingModal = document.querySelector('.modal-backdrop');
-    if (existingModal) existingModal.remove();
+    document.getElementById('loginModal')?.remove();
 
     const modalHtml = `
     <div class="modal-backdrop" id="loginModal">
@@ -269,19 +295,16 @@ function openLoginModal(courseId, lectureId) {
         </div>
         <div class="login-error" id="loginError"></div>
         <div class="modal-actions">
-          <button class="outline" onclick="closeLoginModal()">Cancel</button>
-          <button class="primary" id="loginSubmitBtn">Login</button>
+          <button class="outline" data-action="close-login-modal">Cancel</button>
+          <button class="primary" data-action="submit-login" data-course-id="${esc(courseId || '')}" data-lecture-id="${esc(lectureId || '')}">Login</button>
         </div>
       </div>
     </div>
   `;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-    document.getElementById('loginSubmitBtn').onclick = function() {
-        handleStudentLogin(courseId, lectureId);
-    };
-    document.getElementById('loginPassword').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') handleStudentLogin(courseId, lectureId);
+    document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleStudentLogin(courseId || null, lectureId || null);
     });
 }
 
@@ -317,8 +340,7 @@ function handleStudentLogin(courseId, lectureId) {
 }
 
 function closeLoginModal() {
-    const modal = document.getElementById('loginModal');
-    if (modal) modal.remove();
+    document.getElementById('loginModal')?.remove();
 }
 
 function navigateStudent(page) {
@@ -334,11 +356,42 @@ function backToYearSelection() {
     yearSelectionPage();
 }
 
-function toggleMenu() {
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar) {
-        sidebar.classList.toggle('open');
-    }
+function toggleStudentSidebar() {
+    document.querySelector('.sidebar')?.classList.toggle('open');
 }
+
+function closeStudentSidebar() {
+    document.querySelector('.sidebar')?.classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+    const target = e.target.closest('[data-action]');
+
+    if (!target) {
+        const openSidebar = document.querySelector('.sidebar.open');
+        if (openSidebar && !openSidebar.contains(e.target) && !e.target.closest('.mobile-menu-button')) {
+            openSidebar.classList.remove('open');
+        }
+        return;
+    }
+
+    const action = target.dataset.action;
+
+    switch (action) {
+        case 'select-year': selectYear(target.dataset.year); break;
+        case 'go-admin': window.location.href = 'admin.html'; break;
+        case 'toggle-menu': toggleStudentSidebar(); break;
+        case 'close-menu': closeStudentSidebar(); break;
+        case 'navigate-dashboard': navigateStudent('dashboard'); break;
+        case 'change-year': backToYearSelection(); break;
+        case 'open-course': openCourseDetail(target.dataset.courseId); break;
+        case 'back-to-dashboard': renderStudentDashboard(); break;
+        case 'open-lecture': openLecturePlayer(target.dataset.courseId, target.dataset.lectureId); break;
+        case 'open-login': openLoginModal(target.dataset.courseId, target.dataset.lectureId); break;
+        case 'back-to-course': openCourseDetail(target.dataset.courseId); break;
+        case 'close-login-modal': closeLoginModal(); break;
+        case 'submit-login': handleStudentLogin(target.dataset.courseId || null, target.dataset.lectureId || null); break;
+    }
+});
 
 yearSelectionPage();

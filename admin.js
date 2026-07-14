@@ -63,35 +63,13 @@ function esc(value) {
  
 // ---------- Toast ----------
 let toastTimer = null;
-function getToastElement() {
-    let el = document.getElementById('toast');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'toast';
-        el.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #333;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 4px;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        `;
-        document.body.appendChild(el);
-    }
-    return el;
-}
- 
 function adminToast(message) {
-    const el = getToastElement();
+    const el = document.getElementById('toast');
+    if (!el) return;
     el.textContent = message;
-    el.style.opacity = '1';
+    el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2500);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
  
 // ---------- Login ----------
