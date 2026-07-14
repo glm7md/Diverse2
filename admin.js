@@ -77,6 +77,7 @@ function showAdminLogin() {
     adminApp.innerHTML = `
     <main class="admin-login-page">
       <div class="admin-login-card">
+        <button class="back-button" data-action="back-to-home">← Back to Home</button>
         <div class="brand">
           <span class="brand-mark">N</span> NORTHSTAR UNIVERSITY
         </div>
@@ -808,6 +809,7 @@ document.addEventListener('click', (e) => {
     switch (action) {
         case 'toggle-sidebar': toggleAdminSidebar(); break;
         case 'close-sidebar': closeAdminSidebar(); break;
+        case 'back-to-home': window.location.href = 'index.html'; break;
         case 'navigate-courses': adminNavigate('courses'); break;
         case 'navigate-students': adminNavigate('students'); break;
         case 'logout': adminLogout(); break;

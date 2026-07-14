@@ -65,7 +65,7 @@ function yearSelectionPage() {
         `).join('')}
       </div>
       <div class="admin-link">
-        <button data-action="go-admin">Administrator Access</button>
+        <button data-action="open-signin">Sign In</button>
       </div>
     </main>
   `;
@@ -343,6 +343,74 @@ function closeLoginModal() {
     document.getElementById('loginModal')?.remove();
 }
 
+function openUnifiedSignInModal() {
+    document.getElementById('signInModal')?.remove();
+
+    const modalHtml = `
+    <div class="modal-backdrop" id="signInModal">
+      <div class="modal">
+        <h2>Sign In</h2>
+        <p>Login with your student or administrator account.</p>
+        <div class="field">
+          <label>Email or Username</label>
+          <input id="signInEmail" type="text" placeholder="Enter your email or username">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="signInPassword" type="password" placeholder="Enter your password">
+        </div>
+        <div class="login-error" id="signInError"></div>
+        <div class="modal-actions">
+          <button class="outline" data-action="close-signin-modal">Cancel</button>
+          <button class="primary" data-action="submit-signin">Sign In</button>
+        </div>
+      </div>
+    </div>
+  `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    document.getElementById('signInPassword').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleUnifiedSignIn();
+    });
+}
+
+function closeUnifiedSignInModal() {
+    document.getElementById('signInModal')?.remove();
+}
+
+function handleUnifiedSignIn() {
+    const email = document.getElementById('signInEmail').value.trim();
+    const password = document.getElementById('signInPassword').value;
+    const errorEl = document.getElementById('signInError');
+
+    if (!email || !password) {
+        errorEl.textContent = 'Please enter both email/username and password.';
+        return;
+    }
+
+    if (email === 'admin' && password === 'admin123') {
+        localStorage.setItem('northstar_admin_session', 'true');
+        window.location.href = 'admin.html';
+        return;
+    }
+
+    const student = state.data.students.find(s =>
+        (s.email === email || s.username === email) && s.password === password
+    );
+
+    if (!student) {
+        errorEl.textContent = 'Invalid credentials. Please try again.';
+        return;
+    }
+
+    state.user = { ...student, role: 'student' };
+    state.selectedYear = student.year || 'First Year';
+    localStorage.setItem('northstar_student_session', JSON.stringify({ id: student.id }));
+    closeUnifiedSignInModal();
+    toast('Login successful! Welcome back.');
+    renderStudentDashboard();
+}
+
 function navigateStudent(page) {
     if (page === 'dashboard') {
         renderStudentDashboard();
@@ -379,7 +447,9 @@ document.addEventListener('click', (e) => {
 
     switch (action) {
         case 'select-year': selectYear(target.dataset.year); break;
-        case 'go-admin': window.location.href = 'admin.html'; break;
+        case 'open-signin': openUnifiedSignInModal(); break;
+        case 'close-signin-modal': closeUnifiedSignInModal(); break;
+        case 'submit-signin': handleUnifiedSignIn(); break;
         case 'toggle-menu': toggleStudentSidebar(); break;
         case 'close-menu': closeStudentSidebar(); break;
         case 'navigate-dashboard': navigateStudent('dashboard'); break;
