@@ -149,7 +149,10 @@ function renderAdminPanel() {
     adminApp.innerHTML = `
     <div class="admin-shell">
       ${adminSidebar()}
-      <main class="admin-main" id="adminContent"></main>
+      <main class="admin-main">
+        <button class="mobile-menu-button" data-action="toggle-sidebar">☰ Menu</button>
+        <div id="adminContent"></div>
+      </main>
     </div>
   `;
     renderAdminContent();
@@ -158,6 +161,10 @@ function renderAdminPanel() {
 function adminSidebar() {
     return `
     <aside class="admin-sidebar">
+      <div class="mobile-sidebar-head">
+        <span>Menu</span>
+        <button data-action="close-sidebar">&times;</button>
+      </div>
       <div class="brand">
         <span class="brand-mark">N</span> NORTHSTAR
       </div>
@@ -181,6 +188,14 @@ function adminSidebar() {
       </div>
     </aside>
   `;
+}
+ 
+function toggleAdminSidebar() {
+    document.querySelector('.admin-sidebar')?.classList.toggle('open');
+}
+ 
+function closeAdminSidebar() {
+    document.querySelector('.admin-sidebar')?.classList.remove('open');
 }
  
 function adminNavigate(page) {
@@ -801,10 +816,20 @@ function deleteStudent(studentId) {
 // ---------- Event delegation ----------
 document.addEventListener('click', (e) => {
     const target = e.target.closest('[data-action]');
-    if (!target) return;
+ 
+    if (!target) {
+        const openSidebar = document.querySelector('.admin-sidebar.open');
+        if (openSidebar && !openSidebar.contains(e.target) && !e.target.closest('.mobile-menu-button')) {
+            openSidebar.classList.remove('open');
+        }
+        return;
+    }
+ 
     const action = target.dataset.action;
  
     switch (action) {
+        case 'toggle-sidebar': toggleAdminSidebar(); break;
+        case 'close-sidebar': closeAdminSidebar(); break;
         case 'navigate-courses': adminNavigate('courses'); break;
         case 'navigate-students': adminNavigate('students'); break;
         case 'logout': adminLogout(); break;
@@ -838,4 +863,3 @@ if (localStorage.getItem('northstar_admin_session') === 'true') {
 } else {
     showAdminLogin();
 }
- 
